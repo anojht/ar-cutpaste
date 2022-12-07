@@ -23,6 +23,19 @@ This prototype runs as 2 independent modules:
 
 ### 1 - Setup the external salience object detection service
 
+- Follow instruction for the repo here:
+
+#### Set up your own model service (requires a CUDA GPU)
+
+- As mentioned above, for the time being, you must deploy the
+  BASNet model (Qin & al, CVPR 2019) as an external HTTP service using this [BASNet-HTTP wrapper](https://github.com/cyrildiagne/basnet-http) (requires a CUDA GPU)
+
+- You will need the deployed service URL to configure the local server
+
+- Make sure to configure a different port if you're running BASNet on the same computer as the local service
+
+### 3 - Configure and run the local server
+
 ## Setup
 
 ```console
@@ -37,19 +50,6 @@ pip install -r requirements.txt
 python main.py \
     --basnet_service_ip="http://X.X.X.X:8080" \
 ```
-
-#### Set up your own model service (requires a CUDA GPU)
-
-- As mentioned above, for the time being, you must deploy the
-  BASNet model (Qin & al, CVPR 2019) as an external HTTP service using this [BASNet-HTTP wrapper](https://github.com/cyrildiagne/basnet-http) (requires a CUDA GPU)
-
-- You will need the deployed service URL to configure the local server
-
-- Make sure to configure a different port if you're running BASNet on the same computer as the local service
-
-### 3 - Configure and run the local server
-
-- Follow the instructions in [/server](/server) to setup & run the local server.
 
 ## Thanks and Acknowledgements
 
