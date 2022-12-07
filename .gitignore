@@ -4,6 +4,6 @@ venv
 .pyc
 node_modules
 __pycache__
-server/*.png
-server/*.jpg
+*.png
+*.jpg
 *.psd

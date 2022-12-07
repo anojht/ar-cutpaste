@@ -1,23 +1,23 @@
+import argparse
 import io
+import logging
 import os
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
-from PIL import Image
-import numpy as np
 import time
-import screenpoint
 from datetime import datetime
+import numpy as np
 import pyscreenshot
 import requests
-import logging
-import argparse
-
-import ps
+from flask import Flask, jsonify, request, send_file
+from flask_cors import CORS
+from PIL import Image
+import screenpoint.screenpoint as screenpoint
+import pyautogui
+from sys import platform
+import subprocess
 
 logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--photoshop_password', default='123456')
 parser.add_argument('--basnet_service_ip', required=True, help="The BASNet service IP address")
 parser.add_argument('--basnet_service_host', help="Optional, the BASNet service host")
 args = parser.parse_args()
@@ -81,11 +81,12 @@ def save():
         # shutil.copyfileobj(res.raw, f)
 
     logging.info(' > opening mask...')
-    mask = Image.open('cut_mask.png').convert("L")
+    ref = Image.open(io.BytesIO(data))
+    mask = Image.open('cut_mask.png').resize([ref.width, ref.height]).convert("L")
 
     # Convert string data to PIL Image.
     logging.info(' > compositing final image...')
-    ref = Image.open(io.BytesIO(data))
+
     empty = Image.new("RGBA", ref.size, 0)
     img = Image.composite(ref, empty, mask)
 
@@ -161,29 +162,42 @@ def paste():
         y = int(y / screen.size[1] * screen_height)
         logging.info(f'{x}, {y}')
 
-        # Paste the current image in photoshop at these coordinates.
-        logging.info(' > sending to photoshop...')
+        # Paste the current image
+        logging.info(' > pasting image...')
+        pyautogui.moveTo(x, y)
+        pyautogui.click()
+
         name = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
         img_path = os.path.join(os.getcwd(), 'cut_current.png')
-        err = ps.paste(img_path, name, x, y, password=args.photoshop_password)
+
+        # could not get windows in due to complicated dependencies resolution and deprecations
+        if platform == "darwin":
+            #err = os.system(f"cat {img_path} | pbcopy")
+            err = subprocess.run(["osascript", "-e", "set the clipboard to (read (POSIX file \"" + img_path  + "\") as «class PNGf»)" ])
+            time.sleep(2)
+            pyautogui.keyDown("command")
+            pyautogui.press("v")
+            time.sleep(2)
+            pyautogui.keyUp("command")
+
         if err is not None:
-            logging.error('error sending to photoshop')
+            logging.error('Error pasting image')
             logging.error(err)
-            jsonify({'status': 'error sending to photoshop'})
+            jsonify({'status': 'Error pasting image'})
     else:
-        logging.info('screen not found')
+        logging.info('Screen not found')
 
     # Print stats.
     logging.info(f'Completed in {time.time() - start:.2f}s')
 
     # Return status.
     if found:
-        return jsonify({'status': 'ok'})
+        return jsonify({'status': 'Successfully Pasted'})
     else:
-        return jsonify({'status': 'screen not found'})
+        return jsonify({'status': 'Screen not found'})
 
 
 if __name__ == '__main__':
     os.environ['FLASK_ENV'] = 'development'
-    port = int(os.environ.get('PORT', 8080))
+    port = int(os.environ.get('PORT', 8081))
     app.run(debug=True, host='0.0.0.0', port=port)

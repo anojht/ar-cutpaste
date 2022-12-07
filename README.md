@@ -1,22 +1,10 @@
 # AR Cut & Paste
 
-An AR+ML prototype that allows cutting elements from your surroundings and pasting them in an image editing software.
-
-Although only Photoshop is being handled currently, it may handle different outputs in the future.
-
-Demo & more infos: [Thread](https://twitter.com/cyrildiagne/status/1256916982764646402)
-
-⚠️ This is a research prototype and not a consumer / photoshop user tool.
-
-**Update 2020.05.11:** If you're looking for an easy to use app based on this research, head over to https://clipdrop.co
+This fork fixes the image scaling issues and introduces a more generic method to paste the image rather than using only photoshop
 
 ## Modules
 
-This prototype runs as 3 independent modules:
-
-- **The mobile app**
-
-  - Check out the [/app](/app) folder for instructions on how to deploy the app to your mobile.
+This prototype runs as 2 independent modules:
 
 - **The local server**
 
@@ -31,48 +19,41 @@ This prototype runs as 3 independent modules:
 
 ## Usage
 
-### 1 - Configure Photoshop
+### NOTE: THE PASTE ENDPOINT ONLY WORKS ON MACOS DUE TO COMPATIBILITY ISSUES
 
-- Go to "Preferences > Plug-ins", enable "Remote Connection" and set a friendly password that you'll need later.
-- Make sure that your PS document settings match those in ```server/src/ps.py```, otherwise only an empty layer will be pasted.
-- Also make sure that your document has some sort of background. If the background is just blank, SIFT will probably not have enough feature to do a correct match.
+### 1 - Setup the external salience object detection service
 
-<!--
-### 2) Setup the local server
+## Setup
 
-```bash
-virtualenv venv
+```console
+virtualenv -p python3.10 venv
 source venv/bin/activate
 pip install -r requirements.txt
-``` -->
+```
 
-### 2 - Setup the external salience object detection service
+## Run
 
-#### Option 1: Set up your own model service (requires a CUDA GPU)
+```console
+python main.py \
+    --basnet_service_ip="http://X.X.X.X:8080" \
+```
+
+#### Set up your own model service (requires a CUDA GPU)
 
 - As mentioned above, for the time being, you must deploy the
-BASNet model (Qin & al, CVPR 2019) as an external HTTP service using this [BASNet-HTTP wrapper](https://github.com/cyrildiagne/basnet-http) (requires a CUDA GPU)
+  BASNet model (Qin & al, CVPR 2019) as an external HTTP service using this [BASNet-HTTP wrapper](https://github.com/cyrildiagne/basnet-http) (requires a CUDA GPU)
 
 - You will need the deployed service URL to configure the local server
 
 - Make sure to configure a different port if you're running BASNet on the same computer as the local service
 
-#### Option 2: Use a community provided endpoint
-
-A public endpoint has been provided by members of the community. This is useful if you don't have your own CUDA GPU or do not want to go through the process of running the servce on your own.
-
-Use this endpoint by launching the local server with `--basnet_service_ip http://u2net-predictor.tenant-compass.global.coreweave.com`
-
 ### 3 - Configure and run the local server
 
 - Follow the instructions in [/server](/server) to setup & run the local server.
 
-### 4 - Configure and run the mobile app
-
-- Follow the instructions in [/app](/app) to setup & deploy the mobile app.
-
 ## Thanks and Acknowledgements
 
-- [BASNet code](https://github.com/NathanUA/BASNet) for '[*BASNet: Boundary-Aware Salient Object Detection*](http://openaccess.thecvf.com/content_CVPR_2019/html/Qin_BASNet_Boundary-Aware_Salient_Object_Detection_CVPR_2019_paper.html) [code](https://github.com/NathanUA/BASNet)', [Xuebin Qin](https://webdocs.cs.ualberta.ca/~xuebin/), [Zichen Zhang](https://webdocs.cs.ualberta.ca/~zichen2/), [Chenyang Huang](https://chenyangh.com/), [Chao Gao](https://cgao3.github.io/), [Masood Dehghan](https://sites.google.com/view/masoodd) and [Martin Jagersand](https://webdocs.cs.ualberta.ca/~jag/)
+- [Original Repo](https://github.com/cyrildiagne/ar-cutpaste) for serving as an excellent base to improve upon
+- [BASNet code](https://github.com/NathanUA/BASNet) for '[_BASNet: Boundary-Aware Salient Object Detection_](http://openaccess.thecvf.com/content_CVPR_2019/html/Qin_BASNet_Boundary-Aware_Salient_Object_Detection_CVPR_2019_paper.html) [code](https://github.com/NathanUA/BASNet)', [Xuebin Qin](https://webdocs.cs.ualberta.ca/~xuebin/), [Zichen Zhang](https://webdocs.cs.ualberta.ca/~zichen2/), [Chenyang Huang](https://chenyangh.com/), [Chao Gao](https://cgao3.github.io/), [Masood Dehghan](https://sites.google.com/view/masoodd) and [Martin Jagersand](https://webdocs.cs.ualberta.ca/~jag/)
 - RunwayML for the [Photoshop paste code](https://github.com/runwayml/RunwayML-for-Photoshop/blob/master/host/index.jsx)
 - [CoreWeave](https://www.coreweave.com) for hosting the public U^2Net model endpoint on Tesla V100s
