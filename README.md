@@ -23,18 +23,18 @@ This prototype runs as 2 independent modules:
 
 ### 1 - Setup the external salience object detection service
 
-- Follow instruction for the repo here:
+- Follow instruction for the repo here: [BASNet-HTTP wrapper](https://github.com/anojht/basnet-http)
 
 #### Set up your own model service (requires a CUDA GPU)
 
-- As mentioned above, for the time being, you must deploy the
-  BASNet model (Qin & al, CVPR 2019) as an external HTTP service using this [BASNet-HTTP wrapper](https://github.com/cyrildiagne/basnet-http) (requires a CUDA GPU)
+- As mentioned above, for the time being, you must run the
+  BASNet model (Qin & al, CVPR 2019) as an external HTTP service (requires a CUDA GPU)
 
-- You will need the deployed service URL to configure the local server
+- You will need the running service URL to configure the local server
 
-- Make sure to configure a different port if you're running BASNet on the same computer as the local service
+- Make sure to check the port configuration if you're running BASNet on the same computer as the local service
 
-### 3 - Configure and run the local server
+### 2 - Configure and run the local server
 
 ## Setup
 
@@ -50,6 +50,8 @@ pip install -r requirements.txt
 python main.py \
     --basnet_service_ip="http://X.X.X.X:8080" \
 ```
+
+**NOTE: This app runs on port 8081 and you can set the port in main.py. Make sure to update the Android app to use the IP address of your laptop so it can connect.**
 
 ## Thanks and Acknowledgements
 
