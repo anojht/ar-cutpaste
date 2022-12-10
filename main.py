@@ -2,24 +2,28 @@ import argparse
 import io
 import logging
 import os
+import subprocess
 import time
 from datetime import datetime
+from sys import platform
+
 import numpy as np
+import pyautogui
 import pyscreenshot
 import requests
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from PIL import Image
+
 import screenpoint.screenpoint as screenpoint
-import pyautogui
-from sys import platform
-import subprocess
 
 logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--basnet_service_ip', required=True, help="The BASNet service IP address")
-parser.add_argument('--basnet_service_host', help="Optional, the BASNet service host")
+parser.add_argument(
+    "--basnet_service_ip", required=True, help="The BASNet service IP address"
+)
+parser.add_argument("--basnet_service_host", help="Optional, the BASNet service host")
 args = parser.parse_args()
 
 max_view_size = 700
@@ -31,61 +35,59 @@ CORS(app)
 
 
 # Simple probe.
-@app.route('/', methods=['GET'])
+@app.route("/", methods=["GET"])
 def hello():
-    return 'Hello AR Cut Paste!'
+    return "Hello AR Cut Paste!"
+
 
 # Ping to wake up the BASNet service.
-@app.route('/ping', methods=['GET'])
+@app.route("/ping", methods=["GET"])
 def ping():
-    logging.info('ping')
-    r = requests.get(args.basnet_service_ip, headers={'Host': args.basnet_service_host})
-    logging.info(f'pong: {r.status_code} {r.content}')
-    return 'pong'
+    logging.info("ping")
+    r = requests.get(args.basnet_service_ip, headers={"Host": args.basnet_service_host})
+    logging.info(f"pong: {r.status_code} {r.content}")
+    return "pong"
 
 
 # The cut endpoints performs the salience detection / background removal.
 # And store a copy of the result to be pasted later.
-@app.route('/cut', methods=['POST'])
+@app.route("/cut", methods=["POST"])
 def save():
     start = time.time()
-    logging.info(' CUT')
+    logging.info(" CUT")
 
     # Convert string of image data to uint8.
-    if 'data' not in request.files:
-        return jsonify({
-            'status': 'error',
-            'error': 'missing file param `data`'
-        }), 400
-    data = request.files['data'].read()
+    if "data" not in request.files:
+        return jsonify({"status": "error", "error": "missing file param `data`"}), 400
+    data = request.files["data"].read()
     if len(data) == 0:
-        return jsonify({'status:': 'error', 'error': 'empty image'}), 400
+        return jsonify({"status:": "error", "error": "empty image"}), 400
 
     # Save debug locally.
-    with open('cut_received.jpg', 'wb') as f:
+    with open("cut_received.jpg", "wb") as f:
         f.write(data)
 
     # Send to BASNet service.
-    logging.info(' > sending to BASNet...')
+    logging.info(" > sending to BASNet...")
     headers = {}
     if args.basnet_service_host is not None:
-        headers['Host'] = args.basnet_service_host
-    files= {'data': open('cut_received.jpg', 'rb')}
-    res = requests.post(args.basnet_service_ip, headers=headers, files=files )
+        headers["Host"] = args.basnet_service_host
+    files = {"data": open("cut_received.jpg", "rb")}
+    res = requests.post(args.basnet_service_ip, headers=headers, files=files)
     # logging.info(res.status_code)
 
     # Save mask locally.
-    logging.info(' > saving results...')
-    with open('cut_mask.png', 'wb') as f:
+    logging.info(" > saving results...")
+    with open("cut_mask.png", "wb") as f:
         f.write(res.content)
         # shutil.copyfileobj(res.raw, f)
 
-    logging.info(' > opening mask...')
+    logging.info(" > opening mask...")
     ref = Image.open(io.BytesIO(data))
-    mask = Image.open('cut_mask.png').resize([ref.width, ref.height]).convert("L")
+    mask = Image.open("cut_mask.png").resize([ref.width, ref.height]).convert("L")
 
     # Convert string data to PIL Image.
-    logging.info(' > compositing final image...')
+    logging.info(" > compositing final image...")
 
     empty = Image.new("RGBA", ref.size, 0)
     img = Image.composite(ref, empty, mask)
@@ -95,43 +97,40 @@ def save():
     img_scaled = img.resize((img.size[0] * 3, img.size[1] * 3))
 
     # Save locally.
-    logging.info(' > saving final image...')
-    img_scaled.save('cut_current.png')
+    logging.info(" > saving final image...")
+    img_scaled.save("cut_current.png")
 
     # Save to buffer
     buff = io.BytesIO()
-    img.save(buff, 'PNG')
+    img.save(buff, "PNG")
     buff.seek(0)
 
     # Print stats
-    logging.info(f'Completed in {time.time() - start:.2f}s')
+    logging.info(f"Completed in {time.time() - start:.2f}s")
 
     # Return data
-    return send_file(buff, mimetype='image/png')
+    return send_file(buff, mimetype="image/png")
 
 
 # The paste endpoints handles new paste requests.
-@app.route('/paste', methods=['POST'])
+@app.route("/paste", methods=["POST"])
 def paste():
     start = time.time()
-    logging.info(' PASTE')
+    logging.info(" PASTE")
 
     # Convert string of image data to uint8.
-    if 'data' not in request.files:
-        return jsonify({
-            'status': 'error',
-            'error': 'missing file param `data`'
-        }), 400
-    data = request.files['data'].read()
+    if "data" not in request.files:
+        return jsonify({"status": "error", "error": "missing file param `data`"}), 400
+    data = request.files["data"].read()
     if len(data) == 0:
-        return jsonify({'status:': 'error', 'error': 'empty image'}), 400
+        return jsonify({"status:": "error", "error": "empty image"}), 400
 
     # Save debug locally.
-    with open('paste_received.jpg', 'wb') as f:
+    with open("paste_received.jpg", "wb") as f:
         f.write(data)
 
     # Convert string data to PIL Image.
-    logging.info(' > loading image...')
+    logging.info(" > loading image...")
     view = Image.open(io.BytesIO(data))
 
     # Ensure the view image size is under max_view_size.
@@ -139,7 +138,7 @@ def paste():
         view.thumbnail((max_view_size, max_view_size))
 
     # Take screenshot with pyscreenshot.
-    logging.info(' > grabbing screenshot...')
+    logging.info(" > grabbing screenshot...")
     screen = pyscreenshot.grab()
     screen_width, screen_height = screen.size
 
@@ -148,9 +147,9 @@ def paste():
         screen.thumbnail((max_screenshot_size, max_screenshot_size))
 
     # Finds view centroid coordinates in screen space.
-    logging.info(' > finding projected point...')
-    view_arr = np.array(view.convert('L'))
-    screen_arr = np.array(screen.convert('L'))
+    logging.info(" > finding projected point...")
+    view_arr = np.array(view.convert("L"))
+    screen_arr = np.array(screen.convert("L"))
     # logging.info(f'{view_arr.shape}, {screen_arr.shape}')
     x, y = screenpoint.project(view_arr, screen_arr, False)
 
@@ -160,44 +159,51 @@ def paste():
         # Bring back to screen space
         x = int(x / screen.size[0] * screen_width)
         y = int(y / screen.size[1] * screen_height)
-        logging.info(f'{x}, {y}')
+        logging.info(f"{x}, {y}")
 
         # Paste the current image
-        logging.info(' > pasting image...')
+        logging.info(" > pasting image...")
         pyautogui.moveTo(x, y)
         pyautogui.click()
 
-        name = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
-        img_path = os.path.join(os.getcwd(), 'cut_current.png')
+        name = datetime.today().strftime("%Y-%m-%d-%H:%M:%S")
+        img_path = os.path.join(os.getcwd(), "cut_current.png")
 
         # could not get windows in due to complicated dependencies resolution and deprecations
         if platform == "darwin":
-            #err = os.system(f"cat {img_path} | pbcopy")
-            err = subprocess.run(["osascript", "-e", "set the clipboard to (read (POSIX file \"" + img_path  + "\") as «class PNGf»)" ])
+            err = subprocess.run(
+                [
+                    "osascript",
+                    "-e",
+                    'set the clipboard to (read (POSIX file "'
+                    + img_path
+                    + '") as «class PNGf»)',
+                ]
+            )
             time.sleep(2)
             pyautogui.keyDown("command")
             pyautogui.press("v")
             time.sleep(2)
             pyautogui.keyUp("command")
 
-        if err is not None:
-            logging.error('Error pasting image')
+        if err is not 0:
+            logging.error("Error pasting image")
             logging.error(err)
-            jsonify({'status': 'Error pasting image'})
+            jsonify({"status": "Error pasting image"})
     else:
-        logging.info('Screen not found')
+        logging.info("Screen not found")
 
     # Print stats.
-    logging.info(f'Completed in {time.time() - start:.2f}s')
+    logging.info(f"Completed in {time.time() - start:.2f}s")
 
     # Return status.
     if found:
-        return jsonify({'status': 'Successfully Pasted'})
+        return jsonify({"status": "Successfully Pasted"})
     else:
-        return jsonify({'status': 'Screen not found'})
+        return jsonify({"status": "Screen not found"})
 
 
-if __name__ == '__main__':
-    os.environ['FLASK_ENV'] = 'development'
-    port = int(os.environ.get('PORT', 8081))
-    app.run(debug=True, host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    os.environ["FLASK_ENV"] = "development"
+    port = int(os.environ.get("PORT", 8081))
+    app.run(debug=True, host="0.0.0.0", port=port)
